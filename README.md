@@ -1,14 +1,14 @@
 # Amazfit Alarm Remote
 
-Mini App Zepp OS per il futuro controllo della sveglia Xiaomi/HyperOS da Amazfit Active 3 Premium.
+Mini App Zepp OS e applicazione Android Flutter/Kotlin per studiare il controllo della sveglia Xiaomi/HyperOS da Amazfit Active 3 Premium.
 
-**Questa versione non spegne ancora la sveglia del telefono.** Implementa il client orologio, protocollo, macchina a stati, App-side e impostazioni. Il trasporto Android è esplicitamente non configurato: nessuna connessione o esecuzione viene simulata nell'app distribuita.
+**Il controllo dal watch non è operativo.** Sono implementati client orologio, protocollo, macchina a stati, App-side, impostazioni e diagnostica Android con test locali degli Intent dismiss/snooze (esito UNVERIFIED). Il trasporto Android è esplicitamente non configurato: nessuna connessione o esecuzione viene simulata nell'app distribuita.
 
 | Requisito finale | Stato |
 | --- | --- |
 | Apertura automatica sull'orologio | DA VERIFICARE; non implementata. Il percorso diretto da App Service non è supportato dalle API documentate |
 | Comunicazione Zepp OS ↔ app Android esterna | NON ANCORA IMPLEMENTATO; astrazione pronta |
-| Spegnimento/posticipo reale Xiaomi | NON ANCORA IMPLEMENTATO |
+| Spegnimento/posticipo reale Xiaomi | Intent locali IMPLEMENTATI MA DA TESTARE SU HARDWARE; esecuzione non verificata |
 
 ## Struttura
 
@@ -29,7 +29,7 @@ amazfit-alarm-remote/             # root repository
 └── .gitignore
 ```
 
-`android-app/` è riservata alla fase futura: il progetto Flutter non è stato creato. L'entry point Settings generato da Zeus è `setting/index.js`, al singolare.
+`android_alarm_remote/` contiene il progetto Flutter già inizializzato: UI Material 3 italiana, listener Kotlin, diagnostica e test locali. Il nome reale sostituisce il percorso indicativo `android-app/`. L'entry point Settings generato da Zeus è `setting/index.js`, al singolare.
 
 ## Sviluppo e verifica
 
@@ -70,4 +70,22 @@ Modificati: `.gitignore`, questo README, manifest/entry point/device page/App-si
 - [Integrazione Android futura](docs/ANDROID_INTEGRATION.md)
 - [Report dei test e checklist hardware](docs/TEST_REPORT.md)
 
-Prossimi passi: verificare controllo Xiaomi e canale locale Zepp–Android su telefono reale, poi sviluppare la controparte Flutter/Kotlin. Risolvere separatamente il requisito di apertura automatica; la notifica interattiva ufficiale è una possibile alternativa, ma richiede un tap e non soddisfa da sola quel requisito.
+Prossimi passi: collaudare il componente Flutter/Kotlin su Xiaomi, verificare il canale locale Zepp–Android e aggiungere un rilevamento autorevole della suoneria. Risolvere separatamente il requisito di apertura automatica; la notifica interattiva ufficiale è una possibile alternativa, ma richiede un tap e non soddisfa da sola quel requisito.
+
+
+## Applicazione Android
+
+Il listener rileva notifiche candidate senza presumere che la sveglia stia suonando. Selezionare manualmente Orologio Xiaomi tra i gestori rilevati, poi concedere accesso notifiche. I test locali chiedono conferma prima di inviare Intent reali. Nessuna conferma di esecuzione viene simulata. La durata snooze è gestita dall'app Orologio.
+
+```powershell
+cd .\android_alarm_remote
+flutter pub get
+flutter analyze
+flutter test
+flutter build apk --debug
+adb install -r .\build\app\outputs\flutter-apk\app-debug.apk
+```
+
+Per i test Kotlin dalla cartella `android_alarm_remote/android`: `./gradlew.bat :app:testDebugUnitTest` (usare il JDK Android Studio della configurazione locale). L'applicationId debug è `com.example.android_alarm_remote`; la firma release resta quella debug del template e non è una configurazione per pubblicazione.
+
+Documentazione: [architettura Android](docs/ANDROID_ARCHITECTURE.md), [permessi e HyperOS](docs/ANDROID_PERMISSIONS.md), [ricognizione trasporto e API](docs/ANDROID_TRANSPORT_RESEARCH.md), [report e checklist hardware](docs/ANDROID_TEST_REPORT.md).

@@ -1,6 +1,6 @@
 # Architettura — fase Zepp OS
 
-Progetto esistente preservato in `amazfit-alarm-remote/`. Root riservata alla monorepo e alla documentazione. `android-app/` sarà creata nella fase Flutter/Kotlin; nessun progetto Android è stato generato.
+Progetto esistente preservato in `amazfit-alarm-remote/`. Root riservata alla monorepo e alla documentazione. Il componente Flutter/Kotlin è ora nel progetto preesistente `android_alarm_remote/`: vedere [ANDROID_ARCHITECTURE.md](ANDROID_ARCHITECTURE.md). Il trasporto verso questo componente resta non configurato.
 
 ## Componenti implementati
 

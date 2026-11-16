@@ -1,6 +1,6 @@
 # Integrazione Android futura
 
-Nessun codice Android/Flutter è presente in questa fase; non sono stati installati Flutter o Android Studio. La futura applicazione indipendente sarà in `android-app/`.
+Aggiornamento 16 novembre 2026: il componente Flutter/Kotlin è implementato nel progetto già inizializzato `android_alarm_remote/` (percorso reale, anziché `android-app/`). Include diagnostica, listener con stato UNKNOWN e test locali Intent con esito UNVERIFIED. Non è un collegamento operativo al watch. Vedere [architettura Android](ANDROID_ARCHITECTURE.md), [ricognizione](ANDROID_TRANSPORT_RESEARCH.md) e [report](ANDROID_TEST_REPORT.md). Le sezioni seguenti descrivono i requisiti del futuro adapter reale, ancora non configurato.
 
 ## Responsabilità Flutter / Kotlin
 
