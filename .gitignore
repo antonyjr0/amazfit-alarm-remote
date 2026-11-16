@@ -147,3 +147,15 @@ vite.config.ts.timestamp-*
 
 # Turbo Repo
 .turbo
+
+# Zepp artifacts and local credentials
+build/
+*.zab
+*.zpk
+.zepp/
+.zeus*
+*.tmp
+*.bak
+*.pem
+*.key
+secrets.*

@@ -1,14 +1,19 @@
 {
-  "name": "empty",
+  "name": "amazfit-alarm-remote",
   "version": "1.0.0",
-  "description": "",
+  "description": "Zepp OS watch client for future Xiaomi alarm integration",
   "main": "app.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node --test test",
+    "build": ".\\zeus.cmd build",
+    "preview": ".\\zeus.cmd preview"
   },
   "author": "",
   "license": "ISC",
   "devDependencies": {
     "@zeppos/device-types": "^3.0.0"
+  },
+  "dependencies": {
+    "@zeppos/zml": "0.0.43"
   }
 }
