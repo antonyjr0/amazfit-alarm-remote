@@ -1,4 +1,4 @@
-export const TYPES = ['ALARM_RINGING', 'ALARM_DISMISS', 'ALARM_SNOOZE', 'ALARM_DISMISSED', 'ALARM_SNOOZED', 'ALARM_STOPPED', 'CONNECTION_STATUS', 'ERROR']
+export const TYPES = ['ALARM_COMMAND_SENT', 'ALARM_RINGING', 'ALARM_DISMISS', 'ALARM_SNOOZE', 'ALARM_DISMISSED', 'ALARM_SNOOZED', 'ALARM_STOPPED', 'CONNECTION_STATUS', 'ERROR']
 export const ERRORS = ['DISCONNECTED', 'PHONE_UNREACHABLE', 'ANDROID_UNAVAILABLE', 'TIMEOUT', 'ALARM_ENDED', 'UNSUPPORTED', 'INVALID_RESPONSE', 'FAILED', 'NOT_CONFIGURED']
 const commands = ['ALARM_DISMISS', 'ALARM_SNOOZE']
 const completions = ['ALARM_DISMISSED', 'ALARM_SNOOZED']
@@ -16,6 +16,8 @@ export function validate(m) {
   if (m.type.startsWith('ALARM_') && !id(m.alarmId)) return false
   if (commands.includes(m.type) && (Object.keys(m.payload).length !== 0)) return false
   if (completions.includes(m.type) && m.payload.phase !== 'EXECUTED') return false
+  if (m.type === 'ALARM_COMMAND_SENT' && (m.payload.phase !== 'SENT_UNVERIFIED' || !commands.includes(m.payload.command))) return false
+  if (m.type === 'CONNECTION_STATUS' && m.payload.candidate != null && (!object(m.payload.candidate) || !id(m.payload.candidate.id) || typeof m.payload.candidate.armed !== 'boolean')) return false
   if (m.type === 'ERROR' && !ERRORS.includes(m.payload.code)) return false
   if (m.type === 'CONNECTION_STATUS' && (typeof m.payload.connected !== 'boolean' || typeof m.payload.androidAvailable !== 'boolean')) return false
   if (m.type === 'ALARM_RINGING' && m.payload.time !== undefined && (typeof m.payload.time !== 'string' || !/^([01]\d|2[0-3]):[0-5]\d$/.test(m.payload.time))) return false

@@ -89,3 +89,10 @@ adb install -r .\build\app\outputs\flutter-apk\app-debug.apk
 Per i test Kotlin dalla cartella `android_alarm_remote/android`: `./gradlew.bat :app:testDebugUnitTest` (usare il JDK Android Studio della configurazione locale). L'applicationId debug è `com.example.android_alarm_remote`; la firma release resta quella debug del template e non è una configurazione per pubblicazione.
 
 Documentazione: [architettura Android](docs/ANDROID_ARCHITECTURE.md), [permessi e HyperOS](docs/ANDROID_PERMISSIONS.md), [ricognizione trasporto e API](docs/ANDROID_TRANSPORT_RESEARCH.md), [report e checklist hardware](docs/ANDROID_TEST_REPORT.md).
+
+## Collegamento di prova, 16 novembre 2026
+
+Il branch sperimentale `experiment/zepp-android-link` collega le app già esistenti
+tramite loopback autenticato HMAC. Guida e limiti: [docs/COLLEGAMENTO_PROVE.it.md](docs/COLLEGAMENTO_PROVE.it.md).
+Il percorso è pronto per il collaudo assistito, **non verificato su telefono/watch reali**.
+Nessuna apertura automatica né funzionamento a schermo bloccato.

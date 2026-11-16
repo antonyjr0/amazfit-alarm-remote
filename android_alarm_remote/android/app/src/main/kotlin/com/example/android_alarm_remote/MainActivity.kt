@@ -44,6 +44,9 @@ class MainActivity : FlutterActivity() {
                         else Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName"))
                         startActivity(intent); result.success(null)
                     }
+                    "remoteCommand" -> result.success(remoteControl(
+                        call.argument<String>("command"), call.argument<String>("alarmId"),
+                        call.argument<String>("requestId"), call.argument<Number>("timestamp")?.toLong()))
                     "command" -> result.success(control(call.argument<String>("command"), call.argument<String>("alarmId")))
                     else -> result.notImplemented()
                 }
@@ -64,6 +67,20 @@ class MainActivity : FlutterActivity() {
         .map { mapOf("package" to it.activityInfo.packageName, "label" to it.loadLabel(packageManager).toString()) }
         .sortedBy { it["label"] }
 
+    private fun remoteControl(command: String?, id: String?, requestId: String?, timestamp: Long?): String {
+        if (requestId == null || !Regex("^[a-zA-Z0-9_.:-]{1,128}$").matches(requestId) || timestamp == null)
+            return "FAILED"
+        val now = System.currentTimeMillis()
+        if (now - timestamp > 10000 || timestamp - now > 5000) return "FAILED"
+        // Commit a durable claim before launching any Intent. On crash, never replay.
+        val ledger = getSharedPreferences("remote_command_claims", MODE_PRIVATE)
+        if (ledger.contains(requestId)) return "FAILED · Richiesta già utilizzata"
+        val edit = ledger.edit()
+        ledger.all.forEach { (key, value) -> if (value is Long && now - value > 60000) edit.remove(key) }
+        if (ledger.all.values.count { it is Long && now - it <= 60000 } >= 128) return "FAILED"
+        if (!edit.putLong(requestId, now).commit()) return "FAILED"
+        return control(command, id)
+    }
     private fun control(command: String?, id: String?): String {
         if (command !in listOf("DISMISS", "SNOOZE")) return "UNSUPPORTED"
         // Local commands require a visible Activity and explicit user confirmation.

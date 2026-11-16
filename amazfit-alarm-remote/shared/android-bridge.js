@@ -29,7 +29,7 @@ export class AndroidBridge {
     const result = Promise.race([operation, deadline]).then(rawResult => {
       const response = parse(rawResult)
       const expected = req.type === 'ALARM_DISMISS' ? 'ALARM_DISMISSED' : 'ALARM_SNOOZED'
-      if (!response || response.requestId !== req.requestId || response.alarmId !== req.alarmId || ![expected, 'ERROR'].includes(response.type)) return failure(req, 'INVALID_RESPONSE')
+      if (!response || response.requestId !== req.requestId || response.alarmId !== req.alarmId || ![expected, 'ALARM_COMMAND_SENT', 'ERROR'].includes(response.type) || (response.type === 'ALARM_COMMAND_SENT' && response.payload.command !== req.type)) return failure(req, 'INVALID_RESPONSE')
       return response
     }).catch(() => failure(req, 'FAILED')).finally(() => clearTimeout(timer))
     this.cache.set(req.requestId, { alarmId: req.alarmId, type: req.type, result })

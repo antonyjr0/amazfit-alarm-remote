@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 const types = {
+  'ALARM_COMMAND_SENT',
   'ALARM_RINGING',
   'ALARM_STOPPED',
   'ALARM_DISMISS',
@@ -68,6 +69,19 @@ class Envelope {
       }
       if ({'ALARM_DISMISSED', 'ALARM_SNOOZED'}.contains(t) &&
           p['phase'] != 'EXECUTED') {
+        return null;
+      }
+      if (t == 'ALARM_COMMAND_SENT' &&
+          (p['phase'] != 'SENT_UNVERIFIED' ||
+              !{'ALARM_DISMISS', 'ALARM_SNOOZE'}.contains(p['command']))) {
+        return null;
+      }
+      if (t == 'CONNECTION_STATUS' &&
+          p.containsKey('candidate') &&
+          p['candidate'] != null &&
+          (p['candidate'] is! Map ||
+              !validId(p['candidate']['id']) ||
+              p['candidate']['armed'] is! bool)) {
         return null;
       }
       if (t == 'ERROR' && !codes.contains(p['code'])) return null;

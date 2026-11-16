@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import vm from 'node:vm'
 import { AlarmMachine } from '../shared/alarm-machine.js'
+import { LoopbackTransport } from '../shared/loopback-transport.js'
 import { AndroidBridge } from '../shared/android-bridge.js'
 import { message, parse } from '../shared/protocol.js'
 
@@ -64,12 +65,13 @@ test('device releases timers even when closed during a pending heartbeat', () =>
 test('app-side responds truthfully with Android unavailable and rejects malformed requests', async () => {
   let side; const storage = new Map()
   vm.runInNewContext(source('../app-side/index.js'), {
-    BaseSideService: p => p, AppSideService: p => { side = p }, AndroidBridge, parse,
-    settings: { settingsStorage: { setItem: (k, v) => storage.set(k, v) } }, console: { log() {} }
+    BaseSideService: p => p, AppSideService: p => { side = p }, AndroidBridge, LoopbackTransport, parse,
+    settings: { settingsStorage: { setItem: (k, v) => storage.set(k, v), getItem: k => storage.get(k) } }, console: { log() {} }
   })
   side.onInit()
   let response
   side.onRequest({ method: 'alarm.status' }, (err, data) => { response = data })
+  await flush()
   assert.equal(response.payload.androidAvailable, false)
   side.onRequest({ method: 'alarm.command', params: message('ALARM_DISMISS', 'a') }, (err, data) => { response = data })
   await flush(); assert.equal(response.payload.code, 'NOT_CONFIGURED')
@@ -80,7 +82,7 @@ test('settings preference survives rebuild using official storage interface', ()
   let config; const storage = new Map(); let toggle
   vm.runInNewContext(source('../setting/index.js'), {
     AppSettingsPage: p => { config = p }, Section: (p, children) => children,
-    Text: (p, text) => text, Toggle: p => { toggle = p; return p }
+    Text: (p, text) => text, TextInput: p => p, Toggle: p => { toggle = p; return p }
   })
   const settingsStorage = { getItem: k => storage.get(k), setItem: (k, v) => storage.set(k, v) }
   config.build({ settingsStorage }); assert.equal(toggle.value, true)

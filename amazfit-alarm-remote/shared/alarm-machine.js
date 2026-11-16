@@ -1,6 +1,6 @@
 import { message, parse } from './protocol.js'
 
-export const STATES = ['IDLE', 'DISCONNECTED', 'RINGING', 'SENDING_COMMAND', 'WAITING_CONFIRMATION', 'DISMISSED', 'SNOOZED', 'ERROR']
+export const STATES = ['CANDIDATE', 'UNVERIFIED', 'IDLE', 'DISCONNECTED', 'RINGING', 'SENDING_COMMAND', 'WAITING_CONFIRMATION', 'DISMISSED', 'SNOOZED', 'ERROR']
 // Only these public operations change state; incoming completions require exact correlation.
 export class AlarmMachine {
   constructor({ now = () => Date.now(), timeout = 10000, changed = () => {} } = {}) {
@@ -10,7 +10,7 @@ export class AlarmMachine {
     this.seen = []; this.closed = []; this.lastEvent = -1; this.connectionTime = -1
   }
   emit(state) { this.state = state; this.changed(this) }
-  get enabled() { return this.connected && !!this.alarm && !this.pending && ['RINGING', 'ERROR'].includes(this.state) }
+  get enabled() { return this.connected && !!this.alarm && !this.pending && ['RINGING', 'CANDIDATE', 'ERROR'].includes(this.state) && this.alarm.payload.armed !== false }
   disconnect(code = 'DISCONNECTED') {
     this.connected = false; this.pending = null; this.alarm = null; this.phase = null
     this.error = code; this.emit('DISCONNECTED')
@@ -26,6 +26,14 @@ export class AlarmMachine {
       const wasConnected = this.connected
       this.connected = m.payload.connected && m.payload.androidAvailable
       if (!this.connected) { this.disconnect(m.payload.androidAvailable ? 'DISCONNECTED' : 'ANDROID_UNAVAILABLE'); return true }
+      if (Object.prototype.hasOwnProperty.call(m.payload, 'candidate')) {
+        const c = m.payload.candidate
+        if (!c || this.closed.includes(c.id)) { this.alarm = null; this.pending = null; this.error = null; this.emit(this.state === 'UNVERIFIED' ? 'UNVERIFIED' : 'IDLE'); return true }
+        if (this.alarm && this.alarm.alarmId !== c.id) this.pending = null
+        this.alarm = { alarmId: c.id, payload: { armed: c.armed, candidate: true } }
+        if (!this.pending) { this.error = null; this.emit('CANDIDATE') }
+        return true
+      }
       if (wasConnected && ['ERROR', 'DISMISSED', 'SNOOZED'].includes(this.state)) return true
       this.error = null
       this.emit(this.pending ? this.state : this.alarm ? 'RINGING' : 'IDLE'); return true
@@ -48,6 +56,11 @@ export class AlarmMachine {
       this.pending = null; this.error = m.payload.code; this.phase = null
       if (m.payload.code === 'ALARM_ENDED') { this.rememberClosed(m.alarmId); this.alarm = null }
       this.remember(m); this.emit('ERROR'); return true
+    }
+    if (m.type === 'ALARM_COMMAND_SENT') {
+      if (m.payload.command !== this.pending.type) { this.invalid(); return false }
+      this.rememberClosed(m.alarmId); this.remember(m); this.pending = null; this.alarm = null
+      this.error = null; this.phase = 'SENT_UNVERIFIED'; this.emit('UNVERIFIED'); return true
     }
     const expected = this.pending.type === 'ALARM_DISMISS' ? 'ALARM_DISMISSED' : 'ALARM_SNOOZED'
     if (m.type !== expected) { this.invalid(); return false }

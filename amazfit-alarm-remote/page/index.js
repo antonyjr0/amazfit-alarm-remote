@@ -5,13 +5,13 @@ import { BasePage } from '@zeppos/zml/base-page'
 import { AlarmMachine } from '../shared/alarm-machine.js'
 
 const labels = {
-  IDLE: 'Nessuna sveglia attiva', DISCONNECTED: 'Canale non disponibile', RINGING: 'Sveglia in corso',
+  CANDIDATE: 'Notifica candidata', UNVERIFIED: 'Intent inviato', IDLE: 'Nessuna candidata', DISCONNECTED: 'Canale non disponibile', RINGING: 'Sveglia in corso',
   SENDING_COMMAND: 'Invio comando...', WAITING_CONFIRMATION: 'Attendo conferma...',
   DISMISSED: 'Sveglia spenta', SNOOZED: 'Sveglia posticipata', ERROR: 'Comando non riuscito'
 }
 const errors = {
   DISCONNECTED: 'Orologio disconnesso', PHONE_UNREACHABLE: 'Zepp non raggiungibile', ANDROID_UNAVAILABLE: 'App Android non disponibile',
-  TIMEOUT: 'Nessuna conferma. Riprova.', ALARM_ENDED: 'Sveglia già terminata', UNSUPPORTED: 'Comando non supportato',
+  TIMEOUT: 'Esito incerto: controlla telefono', ALARM_ENDED: 'Sveglia già terminata', UNSUPPORTED: 'Comando non supportato',
   INVALID_RESPONSE: 'Risposta non valida', FAILED: 'Operazione fallita', NOT_CONFIGURED: 'Collegamento Android da configurare'
 }
 Page(BasePage({
@@ -52,11 +52,11 @@ Page(BasePage({
   render() {
     if (!this.widgets || !this.alive) return
     const m = this.machine
-    this.widgets.connection.setProperty(ui.prop.TEXT, m.connected ? 'Telefono disponibile' : 'Collegamento non operativo')
+    this.widgets.connection.setProperty(ui.prop.TEXT, m.connected ? 'Collegamento Android attivo' : 'Collegamento non operativo')
     let label = labels[m.state]
     if (m.pending && m.pending.type === 'ALARM_SNOOZE') label = 'Posticipo in corso...'
     this.widgets.state.setProperty(ui.prop.TEXT, label)
-    this.widgets.detail.setProperty(ui.prop.TEXT, m.error ? errors[m.error] || 'Errore di comunicazione' : m.alarm ? m.alarm.payload.time || '' : '')
+    this.widgets.detail.setProperty(ui.prop.TEXT, m.state === 'UNVERIFIED' ? 'Esito reale non verificato' : m.state === 'CANDIDATE' ? (m.enabled ? 'Prova abilitata sul telefono' : 'Abilita prova su Android') : m.error ? errors[m.error] || 'Errore di comunicazione' : m.alarm ? m.alarm.payload.time || '' : '')
     for (const key of ['dismiss', 'snooze']) this.widgets[key].setProperty(ui.prop.MORE, {
       normal_color: m.enabled ? (key === 'dismiss' ? 0xb83d42 : 0x246bb3) : 0x28303b,
       color: m.enabled ? 0xffffff : 0x798391

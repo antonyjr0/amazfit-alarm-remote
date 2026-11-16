@@ -5,12 +5,12 @@
     "appName": "Alarm Remote",
     "appType": "app",
     "version": {
-      "code": 1,
-      "name": "1.0.0"
+      "code": 2,
+      "name": "1.1.0"
     },
     "icon": "icon.png",
     "vender": "zepp",
-    "description": "Controllo sveglia telefono - integrazione Android da configurare"
+    "description": "Controllo sperimentale sveglie tramite app Android Flutter"
   },
   "permissions": [],
   "runtime": {

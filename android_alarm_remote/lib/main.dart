@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'platform_bridge.dart';
+import 'loopback_link.dart';
 
 void main() => runApp(const AlarmRemoteApp());
 
@@ -22,6 +24,8 @@ class Dashboard extends StatefulWidget {
 
 class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
   final bridge = PlatformBridge();
+  late final LoopbackLink link;
+  Timer? linkTimer;
   NativeSnapshot? data;
   List<ClockApp> apps = [];
   String? error;
@@ -31,6 +35,16 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
+    link = LoopbackLink(
+      snapshot: bridge.wireSnapshot,
+      command: bridge.remoteCommand,
+      changed: () {
+        if (mounted) setState(() {});
+      },
+    );
+    linkTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted && link.running) setState(() {});
+    });
     WidgetsBinding.instance.addObserver(this);
     subscription = bridge.events.listen(
       (e) {
@@ -69,10 +83,13 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState s) {
     if (s == AppLifecycleState.resumed) refresh();
+    if (s != AppLifecycleState.resumed) link.disarm();
   }
 
   @override
   void dispose() {
+    linkTimer?.cancel();
+    unawaited(link.stop());
     subscription?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
@@ -123,6 +140,41 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
     await refresh();
   }
 
+  Future<void> startLink() async {
+    try {
+      await link.start();
+    } catch (_) {
+      if (mounted) {
+        setState(
+          () => error = 'Avvio loopback fallito. Nessun collegamento attivo.',
+        );
+      }
+    }
+  }
+
+  Future<void> armRemote(AlarmCandidate a) async {
+    final yes = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: const Text('Abilita una prova remota'),
+        content: const Text(
+          'Conferma solo se senti suonare adesso una sveglia di prova. Per 60 secondi il watch potrà inviare un solo Spegni o Posticipa. Non è una conferma automatica della suoneria. Mantieni questa app visibile.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(c, false),
+            child: const Text('Annulla'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(c, true),
+            child: const Text('Abilita per 60 secondi'),
+          ),
+        ],
+      ),
+    );
+    if (yes == true && mounted) link.arm(a.id);
+  }
+
   Widget card(String title, String body) => Card(
     child: Padding(
       padding: const EdgeInsets.all(16),
@@ -143,8 +195,10 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
     if (tab == 0) {
       children.addAll([
         card(
-          'Collegamento orologio non configurato',
-          'Canale Zepp e apertura automatica sul watch da verificare.',
+          link.running
+              ? 'Collegamento di prova attivo'
+              : 'Collegamento orologio non configurato',
+          '${link.diagnostic}. Solo app visibile; niente apertura automatica sul watch.',
         ),
         card(
           'Accesso notifiche',
@@ -154,6 +208,47 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
           'Orologio selezionato',
           data?.package.isNotEmpty == true ? data!.package : 'Da selezionare',
         ),
+        if (!link.running)
+          FilledButton(
+            onPressed: startLink,
+            child: const Text('Avvia collegamento di prova'),
+          ),
+        if (link.running) ...[
+          card(
+            'Abbinamento temporaneo',
+            'Copia il codice nelle impostazioni Alarm Remote dentro Zepp. Non inviarlo in chat. Scade dopo 10 minuti, chiudendo la sessione o terminando il processo. I comandi sono bloccati fuori dalla schermata.',
+          ),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: OutlinedButton.icon(
+              onPressed: () async {
+                final pairing = link.pairing;
+                if (pairing != null) {
+                  await Clipboard.setData(ClipboardData(text: pairing));
+                }
+              },
+              icon: const Icon(Icons.copy),
+              label: const Text('Copia codice sessione'),
+            ),
+          ),
+          OutlinedButton(
+            onPressed: () => link.stop(),
+            child: const Text('Chiudi collegamento'),
+          ),
+          for (final a in alarms.where(
+            (a) => a.state == 'UNKNOWN' && !a.consumed,
+          ))
+            if (alarms.where((x) => x.state == 'UNKNOWN').length == 1 &&
+                data?.connected == true)
+              FilledButton(
+                onPressed: () => armRemote(a),
+                child: Text(
+                  link.armed(a.id)
+                      ? 'Prova abilitata: un solo comando'
+                      : 'Abilita comandi dal watch',
+                ),
+              ),
+        ],
         card('Ultimo comando', data?.lastCommand ?? 'Nessuno'),
         card(
           'Rilevamento prudente',
@@ -192,6 +287,7 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
         ),
       );
       final active = alarms.where((a) => a.state == 'UNKNOWN' && !a.consumed);
+      final unambiguous = alarms.where((a) => a.state == 'UNKNOWN').length == 1;
       if (active.isEmpty) {
         children.add(
           card(
@@ -207,13 +303,13 @@ class _DashboardState extends State<Dashboard> with WidgetsBindingObserver {
             spacing: 12,
             children: [
               FilledButton(
-                onPressed: busy || data?.connected != true
+                onPressed: busy || !unambiguous || data?.connected != true
                     ? null
                     : () => command(AlarmCommand.dismiss, a.id),
                 child: const Text('Spegni'),
               ),
               OutlinedButton(
-                onPressed: busy || data?.connected != true
+                onPressed: busy || !unambiguous || data?.connected != true
                     ? null
                     : () => command(AlarmCommand.snooze, a.id),
                 child: const Text('Posticipa'),

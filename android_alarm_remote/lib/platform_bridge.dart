@@ -1,4 +1,5 @@
 import 'package:flutter/services.dart';
+import 'protocol.dart';
 
 enum AlarmCommand { dismiss, snooze }
 
@@ -55,6 +56,16 @@ class PlatformBridge {
       _events.receiveBroadcastStream().map((e) => NativeSnapshot(e as Map));
   Future<NativeSnapshot> snapshot() async =>
       NativeSnapshot((await _method.invokeMapMethod('snapshot'))!);
+  Future<Map<String, dynamic>> wireSnapshot() async =>
+      Map<String, dynamic>.from((await _method.invokeMapMethod('snapshot'))!);
+  Future<String> remoteCommand(Envelope r) async =>
+      (await _method.invokeMethod<String>('remoteCommand', {
+        'command': r.type == 'ALARM_DISMISS' ? 'DISMISS' : 'SNOOZE',
+        'alarmId': r.alarmId,
+        'requestId': r.requestId,
+        'timestamp': r.timestamp,
+      })) ??
+      'FAILED';
   Future<List<ClockApp>> apps() async =>
       ((await _method.invokeListMethod('apps')) ?? [])
           .map((a) => ClockApp(a as Map))

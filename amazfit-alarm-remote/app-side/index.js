@@ -1,25 +1,23 @@
 import { BaseSideService } from '@zeppos/zml/base-side'
 import { AndroidBridge } from '../shared/android-bridge.js'
-import { parse } from '../shared/protocol.js'
+import { LoopbackTransport } from '../shared/loopback-transport.js'
 AppSideService(BaseSideService({
   onInit() {
-    this.bridge = new AndroidBridge()
-    settings.settingsStorage.setItem('diagnostics', 'Zepp avviato; trasporto Android non configurato')
-    this.unsubscribe = this.bridge.transport.subscribe(raw => {
-      const event = parse(raw)
-      if (event && ['ALARM_RINGING', 'ALARM_STOPPED', 'CONNECTION_STATUS', 'ERROR'].includes(event.type)) {
-        this.call({ method: 'alarm.event', params: event })
-      }
-    })
+    this.transport = new LoopbackTransport({ fetcher: options => fetch(options),
+      pairing: () => settings.settingsStorage.getItem('pairing') })
+    this.bridge = new AndroidBridge(this.transport)
+    settings.settingsStorage.setItem('diagnostics', 'Trasporto loopback sperimentale; apri Android e abbina la sessione')
   },
   onRequest(req, res) {
     if (!this.bridge) { res('SERVICE_UNAVAILABLE'); return }
-    if (req.method === 'alarm.status') { res(null, this.bridge.status()); return }
+    if (req.method === 'alarm.status') {
+      this.transport.refresh().then(status => {
+        settings.settingsStorage.setItem('diagnostics', status.payload.androidAvailable ? 'Ping Android confermato' : 'Android non raggiungibile: controlla sessione, codice e restrizioni HTTP di Zepp')
+        res(null, status)
+      }).catch(() => res('SERVICE_UNAVAILABLE')); return
+    }
     if (req.method !== 'alarm.command') { res('UNSUPPORTED'); return }
-    this.bridge.execute(req.params).then(result => {
-      console.log('alarm command RECEIVED; result type', result.type)
-      res(null, result)
-    }).catch(() => res('INVALID_REQUEST'))
+    this.bridge.execute(req.params).then(result => res(null, result)).catch(() => res('INVALID_REQUEST'))
   },
-  onDestroy() { if (this.unsubscribe) this.unsubscribe(); if (this.bridge) this.bridge.close(); this.bridge = null }
+  onDestroy() { if (this.bridge) this.bridge.close(); this.bridge = null }
 }))
